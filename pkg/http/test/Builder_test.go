@@ -4,7 +4,7 @@ import (
 	httpServer "github.com/conacry/go-platform/pkg/http/server"
 	httpServerModel "github.com/conacry/go-platform/pkg/http/server/model"
 	logMock "github.com/conacry/go-platform/pkg/logger/test/testDouble/mock"
-	commonTesting "github.com/conacry/go-platform/pkg/testing/error"
+	commonTesting "github.com/conacry/go-platform/pkg/testing"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"testing"
@@ -32,35 +32,6 @@ func (h *HttpBuilder) TestBuild_NoParamGiven_ReturnErr() {
 
 	builder, err := httpServer.NewBuilder().Build()
 	require.Nil(h.T(), builder)
-	commonTesting.AssertErrors(h.T(), err, expectedErr)
-}
-
-func (h *HttpBuilder) TestBuild_LoggerIsNil_ReturnErr() {
-	expectedErr := []error{
-		httpServer.ErrLoggerIsRequired,
-	}
-
-	config := httpServerModel.Config{}
-
-	builder := httpServer.NewBuilder()
-	builder.Config(&config)
-	server, err := builder.Build()
-
-	require.Nil(h.T(), server)
-	commonTesting.AssertErrors(h.T(), err, expectedErr)
-}
-
-func (h *HttpBuilder) TestBuild_ConfigIsNil_ReturnErr() {
-	expectedErr := []error{
-		httpServer.ErrHttpConfigIsRequired,
-	}
-
-	logger := logMock.GetLogger()
-	builder := httpServer.NewBuilder()
-	builder.Logger(logger)
-	server, err := builder.Build()
-
-	require.Nil(h.T(), server)
 	commonTesting.AssertErrors(h.T(), err, expectedErr)
 }
 

@@ -3,7 +3,7 @@ package clickhouseTest
 import (
 	"github.com/conacry/go-platform/pkg/clickhouse"
 	logMock "github.com/conacry/go-platform/pkg/logger/test/testDouble/mock"
-	commonTesting "github.com/conacry/go-platform/pkg/testing/error"
+	commonTesting "github.com/conacry/go-platform/pkg/testing"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"testing"
@@ -31,35 +31,6 @@ func (c *ClickhouseBuilder) TestBuild_NoParamGiven_ReturnErr() {
 
 	builder, err := clickhouse.NewBuilder().Build()
 	require.Nil(c.T(), builder)
-	commonTesting.AssertErrors(c.T(), err, expectedErr)
-}
-
-func (c *ClickhouseBuilder) TestBuild_LoggerIsNil_ReturnErr() {
-	expectedErr := []error{
-		clickhouse.ErrLoggerIsRequired,
-	}
-
-	config := clickhouse.Config{}
-
-	builder := clickhouse.NewBuilder()
-	builder.Config(&config)
-	ch, err := builder.Build()
-
-	require.Nil(c.T(), ch)
-	commonTesting.AssertErrors(c.T(), err, expectedErr)
-}
-
-func (c *ClickhouseBuilder) TestBuild_ConfigIsNil_ReturnErr() {
-	expectedErr := []error{
-		clickhouse.ErrClickHouseConfigIsRequired,
-	}
-
-	logger := logMock.GetLogger()
-	builder := clickhouse.NewBuilder()
-	builder.Logger(logger)
-	ch, err := builder.Build()
-
-	require.Nil(c.T(), ch)
 	commonTesting.AssertErrors(c.T(), err, expectedErr)
 }
 

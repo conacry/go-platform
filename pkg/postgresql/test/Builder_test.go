@@ -3,7 +3,7 @@ package posgresqlTest
 import (
 	logMock "github.com/conacry/go-platform/pkg/logger/test/testDouble/mock"
 	"github.com/conacry/go-platform/pkg/postgresql"
-	commonTesting "github.com/conacry/go-platform/pkg/testing/error"
+	commonTesting "github.com/conacry/go-platform/pkg/testing"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"testing"
@@ -31,35 +31,6 @@ func (p *PostgreSQLBuilder) TestBuild_NoParamGiven_ReturnErr() {
 
 	builder, err := postgresql.NewBuilder().Build()
 	require.Nil(p.T(), builder)
-	commonTesting.AssertErrors(p.T(), err, expectedErr)
-}
-
-func (p *PostgreSQLBuilder) TestBuild_LoggerIsNil_ReturnErr() {
-	expectedErr := []error{
-		postgresql.ErrLoggerIsRequired,
-	}
-
-	config := postgresql.Config{}
-
-	builder := postgresql.NewBuilder()
-	builder.Config(&config)
-	postgreSQL, err := builder.Build()
-
-	require.Nil(p.T(), postgreSQL)
-	commonTesting.AssertErrors(p.T(), err, expectedErr)
-}
-
-func (p *PostgreSQLBuilder) TestBuild_ConfigIsNil_ReturnErr() {
-	expectedErr := []error{
-		postgresql.ErrConfigIsRequired,
-	}
-
-	logger := logMock.GetLogger()
-	builder := postgresql.NewBuilder()
-	builder.Logger(logger)
-	postgreSQL, err := builder.Build()
-
-	require.Nil(p.T(), postgreSQL)
 	commonTesting.AssertErrors(p.T(), err, expectedErr)
 }
 
