@@ -7,7 +7,7 @@ import (
 
 func GetRepository() *RepositoryMock {
 	return &RepositoryMock{
-		BaseMock: mocking.NewBaseMock(),
+		BaseMock: mocking.NewBaseMock(mocking.Modes.Strict()),
 	}
 }
 

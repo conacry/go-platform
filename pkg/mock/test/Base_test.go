@@ -61,7 +61,7 @@ func TestBaseMockShould(t *testing.T) {
 
 func (s *BaseMockShould) SetupTest() {
 	s.mockedStruct = &MockedStruct{
-		BaseMock: mocking.NewBaseMock(),
+		BaseMock: mocking.NewBaseMock(mocking.Modes.Strict()),
 	}
 }
 

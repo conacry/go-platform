@@ -8,7 +8,7 @@ import (
 
 func GetStorage() *StorageMock {
 	return &StorageMock{
-		BaseMock: mocking.NewBaseMock(),
+		BaseMock: mocking.NewBaseMock(mocking.Modes.Strict()),
 	}
 }
 
