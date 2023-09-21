@@ -11,7 +11,7 @@ type LoggerMock struct {
 
 func GetLogger() *LoggerMock {
 	return &LoggerMock{
-		BaseMock: mocking.NewBaseMock(),
+		BaseMock: mocking.NewBaseMock(mocking.Modes.Base()),
 	}
 }
 

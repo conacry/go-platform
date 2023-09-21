@@ -18,11 +18,17 @@ var (
 )
 
 type BaseMock struct {
+	mode        Mode
 	mockMethods map[string]*mockMethod
 }
 
-func NewBaseMock() *BaseMock {
+func NewBaseMock(mode Mode) *BaseMock {
+	if mode == "" {
+		mode = Modes.Strict()
+	}
+
 	return &BaseMock{
+		mode:        mode,
 		mockMethods: map[string]*mockMethod{},
 	}
 }
@@ -34,18 +40,23 @@ func (m *BaseMock) Reset() {
 func (m *BaseMock) ProcessMethod(args ...interface{}) (interface{}, error) {
 	methodName := getCurrentFuncName()
 
+	m.initMockIfNotExists(methodName)
 	mockedMethod, ok := m.mockMethods[methodName]
 	if !ok {
 		panic(fmt.Sprintf("there is no mocked method with name: %q", methodName))
 	}
 
-	value := mockedMethod.getMockValue()
-	if value == nil {
-		panic(fmt.Sprintf("behaviour for mock method = %q didn't set", methodName))
-	}
-
 	mockedMethod.setCalledArguments(args...)
 	mockedMethod.incrementCallCount()
+
+	value := mockedMethod.getMockValue()
+	if value == nil {
+		if m.mode == Modes.Strict() {
+			panic(fmt.Sprintf("behaviour for mock method = %q didn't set", methodName))
+		}
+
+		return nil, nil
+	}
 
 	switch {
 	case value.isInvokable():
@@ -126,5 +137,13 @@ func (m *BaseMock) addMockValueToMethod(mockedMethod *mockMethod, mockValue inte
 		mockedMethod.addExpectedInvoke(value)
 	default:
 		mockedMethod.addExpectedResult(value)
+	}
+}
+
+func (m *BaseMock) initMockIfNotExists(method string) {
+	mockMethod, exists := m.mockMethods[method]
+	if !exists {
+		mockMethod = newMockMethod(method)
+		m.mockMethods[method] = mockMethod
 	}
 }
