@@ -12,6 +12,7 @@ const (
 )
 
 var (
+	ErrAssertMockResult     = errors.New("an error occurred at asserting mock result")
 	ErrCannotCastResult     = errors.New("cannot cast expected mock result")
 	ErrImplementMe          = errors.New("unknown returnFor in mock. Need some result")
 	ErrIllegalResultForMock = errors.New("illegal result for a mocked method")
