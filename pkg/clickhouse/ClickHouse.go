@@ -13,15 +13,6 @@ type Logger interface {
 	LogInfo(ctx context.Context, messages ...string)
 }
 
-type Config struct {
-	Url          string
-	Database     string
-	Username     string
-	Password     string
-	MaxOpenConns int
-	MaxIdleConns int
-}
-
 type ClickHouse struct {
 	config *Config
 	logger Logger
@@ -31,7 +22,7 @@ type ClickHouse struct {
 func (ch *ClickHouse) Start(ctx context.Context) error {
 	opt := &clickhouse.Options{
 		Protocol: clickhouse.Native,
-		Addr:     []string{ch.config.Url},
+		Addr:     []string{ch.config.URL},
 		Auth: clickhouse.Auth{
 			Database: ch.config.Database,
 			Username: ch.config.Username,
