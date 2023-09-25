@@ -23,7 +23,7 @@ func NewMongoRepository(testConfig *MongoTestConfig, dbName string) *mongo.Mongo
 		Database: dbName,
 	}
 
-	mongoDB, err := mongo.NewRepositoryBuilder().
+	mongoDB, err := mongo.NewBuilder().
 		Logger(logMock.GetLogger()).
 		Config(mongoConfig).
 		Build()

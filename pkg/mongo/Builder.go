@@ -6,30 +6,30 @@ import (
 	mongoModel "github.com/conacry/go-platform/pkg/mongo/model"
 )
 
-type RepositoryBuilder struct {
+type Builder struct {
 	logger log.Logger
 	config *mongoModel.Config
 
 	errors *errors.Errors
 }
 
-func NewRepositoryBuilder() *RepositoryBuilder {
-	return &RepositoryBuilder{
+func NewBuilder() *Builder {
+	return &Builder{
 		errors: errors.NewErrors(),
 	}
 }
 
-func (b *RepositoryBuilder) Logger(logger log.Logger) *RepositoryBuilder {
+func (b *Builder) Logger(logger log.Logger) *Builder {
 	b.logger = logger
 	return b
 }
 
-func (b *RepositoryBuilder) Config(config *mongoModel.Config) *RepositoryBuilder {
+func (b *Builder) Config(config *mongoModel.Config) *Builder {
 	b.config = config
 	return b
 }
 
-func (b *RepositoryBuilder) Build() (*MongoDB, error) {
+func (b *Builder) Build() (*MongoDB, error) {
 	b.checkRequiredFields()
 	if b.errors.IsPresent() {
 		return nil, b.errors
@@ -38,7 +38,7 @@ func (b *RepositoryBuilder) Build() (*MongoDB, error) {
 	return b.createFromBuilder(), nil
 }
 
-func (b *RepositoryBuilder) checkRequiredFields() {
+func (b *Builder) checkRequiredFields() {
 	if b.logger == nil {
 		b.errors.AddError(ErrLoggerIsRequired)
 	}
@@ -47,7 +47,7 @@ func (b *RepositoryBuilder) checkRequiredFields() {
 	}
 }
 
-func (b *RepositoryBuilder) createFromBuilder() *MongoDB {
+func (b *Builder) createFromBuilder() *MongoDB {
 	return &MongoDB{
 		logger: b.logger,
 		config: b.config,
