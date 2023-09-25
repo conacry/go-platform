@@ -1,4 +1,4 @@
-package mongoInterface
+package mongo
 
 import (
 	"context"
@@ -8,9 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type TransactionCallbackFunc func(ctx context.Context, repository MongoRepository) (interface{}, error)
-
-type MongoRepository interface {
+type Repository interface {
 	Insert(ctx context.Context, collectionName string, data interface{}) (string, error)
 
 	InsertMany(ctx context.Context, collectionName string, data []interface{}) ([]string, error)
@@ -69,9 +67,4 @@ type MongoRepository interface {
 	TryCreateIndex(ctx context.Context, index *mongoModel.DBIndex) error
 
 	CollectionIndexes(ctx context.Context, collection string) (map[string]*mongoModel.DBIndex, error)
-
-	Transaction(
-		ctx context.Context,
-		transactionFunc TransactionCallbackFunc,
-	) (interface{}, error)
 }

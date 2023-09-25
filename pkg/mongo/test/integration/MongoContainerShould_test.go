@@ -3,7 +3,7 @@ package integration
 import (
 	"context"
 	"github.com/conacry/go-platform/pkg/mongo"
-	commonTestcontainer "github.com/conacry/go-platform/pkg/mongo/test/container"
+	mongoContainer "github.com/conacry/go-platform/pkg/mongo/test/testDouble/container"
 	commonTesting "github.com/conacry/go-platform/pkg/testing"
 	"strings"
 	"testing"
@@ -24,9 +24,9 @@ const (
 type MongoContainerShould struct {
 	suite.Suite
 
-	MongoRepo *mongo.Repository
+	MongoRepo *mongo.MongoDB
 
-	mongoContainer         *commonTestcontainer.MongoContainer
+	mongoContainer         *mongoContainer.MongoContainer
 	savedMongoModels       []*MongoModel
 	savedMongoModelsByTags map[string][]*MongoModel
 	ctx                    context.Context
@@ -34,18 +34,18 @@ type MongoContainerShould struct {
 
 func TestMongoContainerShould(t *testing.T) {
 	suite.Run(t, &MongoContainerShould{
-		mongoContainer:         commonTestcontainer.NewMongoContainer(),
+		mongoContainer:         mongoContainer.NewMongoContainer(),
 		savedMongoModelsByTags: make(map[string][]*MongoModel),
 	})
 }
 
 func (s *MongoContainerShould) SetupSuite() {
 	commonTesting.SkipIntegrationTestIfNeed(s.T())
-
 	s.mongoContainer.SetupContainer()
 }
 
 func (s *MongoContainerShould) TearDownSuite() {
+	_ = s.MongoRepo.Stop(context.Background())
 	s.mongoContainer.TerminateContainer()
 }
 

@@ -2,16 +2,15 @@ package mongo
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	log "github.com/conacry/go-platform/pkg/logger"
-	mongoInterface "github.com/conacry/go-platform/pkg/mongo/interface"
 	mongoModel "github.com/conacry/go-platform/pkg/mongo/model"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readconcern"
-	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"go.mongodb.org/mongo-driver/x/bsonx"
 )
 
@@ -21,24 +20,77 @@ const (
 
 type handleOperationFunc func(ctx context.Context) (interface{}, error)
 
-type Repository struct {
-	mongoDb *mongo.Database
-	logger  log.Logger
+type MongoDB struct {
+	logger log.Logger
+	config *mongoModel.Config
+	db     *mongo.Database
+	client *mongo.Client
 }
 
-func (r *Repository) Insert(ctx context.Context, collectionName string, data interface{}) (string, error) {
+func (m *MongoDB) Start(ctx context.Context) error {
+	mongoClient, err := mongo.NewClient(options.Client().ApplyURI(m.config.URL))
+	if err != nil {
+		msg := fmt.Sprintf("Error creating mongo client. Cause: %q", err.Error())
+		err := errors.New(msg)
+		m.logger.LogError(ctx, err)
+		return err
+	}
+
+	err = mongoClient.Connect(context.Background())
+	if err != nil {
+		msg := fmt.Sprintf("Mongo connection error. Cause: %q", err.Error())
+		err := errors.New(msg)
+		m.logger.LogError(ctx, err)
+		return err
+	}
+
+	pingTimeout := time.Now().Add(1 * time.Second)
+	ctx, cancelFunc := context.WithDeadline(ctx, pingTimeout)
+	defer cancelFunc()
+
+	err = mongoClient.Ping(ctx, nil)
+	if err != nil {
+		msg := fmt.Sprintf("Mongo ping error. Cause: %q", err.Error())
+		err := errors.New(msg)
+		m.logger.LogError(ctx, err)
+		return err
+	}
+	m.client = mongoClient
+
+	db := mongoClient.Database(m.config.Database)
+	m.db = db
+
+	m.logger.LogInfo(ctx, "MongoDB connection is initialized")
+
+	return nil
+}
+
+func (m *MongoDB) Stop(ctx context.Context) error {
+	err := m.client.Disconnect(ctx)
+	if err != nil {
+		m.logger.LogError(ctx, err)
+		return err
+	}
+
+	m.logger.LogInfo(ctx, "MongoDB connection is closed")
+
+	return nil
+}
+
+func (m *MongoDB) Insert(ctx context.Context, collectionName string, data interface{}) (string, error) {
 	handleFunc := func(ctx context.Context) (interface{}, error) {
-		coll := r.mongoDb.Collection(collectionName)
+		coll := m.db.Collection(collectionName)
 
 		res, err := coll.InsertOne(
 			ctx,
 			data)
 
 		if err != nil {
-			mongoErr, isMongoErr := err.(mongo.WriteException)
+			var mongoErr mongo.WriteException
+			isMongoErr := errors.As(err, &mongoErr)
 			if isMongoErr {
 				for _, we := range mongoErr.WriteErrors {
-					if r.isDuplicateError(we) {
+					if m.isDuplicateError(we) {
 						return "", ErrDuplicateUniqueConstraint(err)
 					}
 					return "", err
@@ -58,7 +110,7 @@ func (r *Repository) Insert(ctx context.Context, collectionName string, data int
 		return id, nil
 	}
 
-	res, err := r.handleOperation(ctx, handleFunc)
+	res, err := m.handleOperation(ctx, handleFunc)
 	if res == nil || err != nil {
 		return "", err
 	}
@@ -66,19 +118,20 @@ func (r *Repository) Insert(ctx context.Context, collectionName string, data int
 	return res.(string), nil
 }
 
-func (r *Repository) InsertMany(ctx context.Context, collectionName string, data []interface{}) ([]string, error) {
+func (m *MongoDB) InsertMany(ctx context.Context, collectionName string, data []interface{}) ([]string, error) {
 	handleFunc := func(ctx context.Context) (interface{}, error) {
-		coll := r.mongoDb.Collection(collectionName)
+		coll := m.db.Collection(collectionName)
 
 		res, err := coll.InsertMany(
 			ctx,
 			data)
 
 		if err != nil {
-			mongoErr, isMongoErr := err.(mongo.WriteException)
+			var mongoErr mongo.WriteException
+			isMongoErr := errors.As(err, &mongoErr)
 			if isMongoErr {
 				for _, we := range mongoErr.WriteErrors {
-					if r.isDuplicateError(we) {
+					if m.isDuplicateError(we) {
 						return nil, ErrDuplicateUniqueConstraint(err)
 					}
 					return nil, err
@@ -102,7 +155,7 @@ func (r *Repository) InsertMany(ctx context.Context, collectionName string, data
 		return ids, nil
 	}
 
-	res, err := r.handleOperation(ctx, handleFunc)
+	res, err := m.handleOperation(ctx, handleFunc)
 	if res == nil || err != nil {
 		return nil, err
 	}
@@ -110,7 +163,7 @@ func (r *Repository) InsertMany(ctx context.Context, collectionName string, data
 	return res.([]string), nil
 }
 
-func (r *Repository) FindOneAndUpdate(
+func (m *MongoDB) FindOneAndUpdate(
 	ctx context.Context,
 	collectionName string,
 	resultModel,
@@ -119,7 +172,7 @@ func (r *Repository) FindOneAndUpdate(
 	opt *options.FindOneAndUpdateOptions,
 ) error {
 	handleFunc := func(ctx context.Context) (interface{}, error) {
-		coll := r.mongoDb.Collection(collectionName)
+		coll := m.db.Collection(collectionName)
 		result := coll.FindOneAndUpdate(
 			ctx,
 			filter,
@@ -139,18 +192,18 @@ func (r *Repository) FindOneAndUpdate(
 		return nil, nil
 	}
 
-	_, err := r.handleOperation(ctx, handleFunc)
+	_, err := m.handleOperation(ctx, handleFunc)
 	return err
 }
 
-func (r *Repository) ReplaceOne(
+func (m *MongoDB) ReplaceOne(
 	ctx context.Context,
 	collectionName string,
 	filter interface{},
 	data interface{},
 ) error {
 	handleFunc := func(ctx context.Context) (interface{}, error) {
-		coll := r.mongoDb.Collection(collectionName)
+		coll := m.db.Collection(collectionName)
 		_, err := coll.ReplaceOne(
 			ctx,
 			filter,
@@ -158,11 +211,11 @@ func (r *Repository) ReplaceOne(
 		return nil, err
 	}
 
-	_, err := r.handleOperation(ctx, handleFunc)
+	_, err := m.handleOperation(ctx, handleFunc)
 	return err
 }
 
-func (r *Repository) UpdateOne(
+func (m *MongoDB) UpdateOne(
 	ctx context.Context,
 	collectionName string,
 	filter,
@@ -170,7 +223,7 @@ func (r *Repository) UpdateOne(
 	opts ...*options.UpdateOptions,
 ) (int64, error) {
 	handleFunc := func(ctx context.Context) (interface{}, error) {
-		coll := r.mongoDb.Collection(collectionName)
+		coll := m.db.Collection(collectionName)
 		res, err := coll.UpdateOne(
 			ctx,
 			filter,
@@ -183,7 +236,7 @@ func (r *Repository) UpdateOne(
 		return res.ModifiedCount, nil
 	}
 
-	res, err := r.handleOperation(ctx, handleFunc)
+	res, err := m.handleOperation(ctx, handleFunc)
 	if res == nil || err != nil {
 		return 0, err
 	}
@@ -191,7 +244,7 @@ func (r *Repository) UpdateOne(
 	return res.(int64), nil
 }
 
-func (r *Repository) UpdateMany(
+func (m *MongoDB) UpdateMany(
 	ctx context.Context,
 	collectionName string,
 	filter interface{},
@@ -199,7 +252,7 @@ func (r *Repository) UpdateMany(
 	opts ...*options.UpdateOptions,
 ) (int64, error) {
 	handleFunc := func(ctx context.Context) (interface{}, error) {
-		coll := r.mongoDb.Collection(collectionName)
+		coll := m.db.Collection(collectionName)
 		res, err := coll.UpdateMany(
 			ctx,
 			filter,
@@ -213,7 +266,7 @@ func (r *Repository) UpdateMany(
 		return res.ModifiedCount, nil
 	}
 
-	res, err := r.handleOperation(ctx, handleFunc)
+	res, err := m.handleOperation(ctx, handleFunc)
 	if res == nil || err != nil {
 		return 0, err
 	}
@@ -221,7 +274,7 @@ func (r *Repository) UpdateMany(
 	return res.(int64), nil
 }
 
-func (r *Repository) Find(
+func (m *MongoDB) Find(
 	ctx context.Context,
 	collectionName string,
 	results interface{},
@@ -229,7 +282,7 @@ func (r *Repository) Find(
 	opt *options.FindOptions,
 ) error {
 	handleFunc := func(ctx context.Context) (interface{}, error) {
-		collection := r.mongoDb.Collection(collectionName)
+		collection := m.db.Collection(collectionName)
 		cursor, err := collection.Find(ctx, find, opt)
 		if err != nil {
 			return nil, err
@@ -243,11 +296,11 @@ func (r *Repository) Find(
 		return nil, nil
 	}
 
-	_, err := r.handleOperation(ctx, handleFunc)
+	_, err := m.handleOperation(ctx, handleFunc)
 	return err
 }
 
-func (r *Repository) FindOne(
+func (m *MongoDB) FindOne(
 	ctx context.Context,
 	collectionName string,
 	resultModel,
@@ -255,7 +308,7 @@ func (r *Repository) FindOne(
 	findOptions *options.FindOneOptions,
 ) error {
 	handleFunc := func(ctx context.Context) (interface{}, error) {
-		collection := r.mongoDb.Collection(collectionName)
+		collection := m.db.Collection(collectionName)
 		result := collection.FindOne(ctx, findQuery, findOptions)
 		err := result.Err()
 		if err != nil {
@@ -270,18 +323,18 @@ func (r *Repository) FindOne(
 		return nil, nil
 	}
 
-	_, err := r.handleOperation(ctx, handleFunc)
+	_, err := m.handleOperation(ctx, handleFunc)
 	return err
 }
 
-func (r *Repository) DeleteOne(
+func (m *MongoDB) DeleteOne(
 	ctx context.Context,
 	collectionName string,
 	filter interface{},
 	opt *options.DeleteOptions,
 ) (*mongo.DeleteResult, error) {
 	handleFunc := func(ctx context.Context) (interface{}, error) {
-		collection := r.mongoDb.Collection(collectionName)
+		collection := m.db.Collection(collectionName)
 		result, err := collection.DeleteOne(ctx, filter, opt)
 		if err != nil {
 			return nil, err
@@ -290,7 +343,7 @@ func (r *Repository) DeleteOne(
 		return result, nil
 	}
 
-	res, err := r.handleOperation(ctx, handleFunc)
+	res, err := m.handleOperation(ctx, handleFunc)
 	if res == nil || err != nil {
 		return nil, err
 	}
@@ -298,14 +351,14 @@ func (r *Repository) DeleteOne(
 	return res.(*mongo.DeleteResult), nil
 }
 
-func (r *Repository) DeleteMany(
+func (m *MongoDB) DeleteMany(
 	ctx context.Context,
 	collectionName string,
 	filter interface{},
 	opt *options.DeleteOptions,
 ) (*mongo.DeleteResult, error) {
 	handleFunc := func(ctx context.Context) (interface{}, error) {
-		collection := r.mongoDb.Collection(collectionName)
+		collection := m.db.Collection(collectionName)
 		result, err := collection.DeleteMany(ctx, filter, opt)
 		if err != nil {
 			return nil, err
@@ -314,7 +367,7 @@ func (r *Repository) DeleteMany(
 		return result, nil
 	}
 
-	res, err := r.handleOperation(ctx, handleFunc)
+	res, err := m.handleOperation(ctx, handleFunc)
 	if res == nil || err != nil {
 		return nil, err
 	}
@@ -322,14 +375,14 @@ func (r *Repository) DeleteMany(
 	return res.(*mongo.DeleteResult), nil
 }
 
-func (r *Repository) Count(
+func (m *MongoDB) Count(
 	ctx context.Context,
 	collectionName string,
 	find interface{},
 	opt *options.CountOptions,
 ) (int64, error) {
 	handleFunc := func(ctx context.Context) (interface{}, error) {
-		collection := r.mongoDb.Collection(collectionName)
+		collection := m.db.Collection(collectionName)
 		count, err := collection.CountDocuments(ctx, find, opt)
 		if err != nil {
 			return 0, err
@@ -338,7 +391,7 @@ func (r *Repository) Count(
 		return count, nil
 	}
 
-	res, err := r.handleOperation(ctx, handleFunc)
+	res, err := m.handleOperation(ctx, handleFunc)
 	if res == nil || err != nil {
 		return 0, err
 	}
@@ -346,13 +399,13 @@ func (r *Repository) Count(
 	return res.(int64), nil
 }
 
-func (r *Repository) Aggregate(
+func (m *MongoDB) Aggregate(
 	ctx context.Context,
 	collectionName string,
 	pipe mongo.Pipeline,
 ) (*mongo.Cursor, error) {
 	handleFunc := func(ctx context.Context) (interface{}, error) {
-		collection := r.mongoDb.Collection(collectionName)
+		collection := m.db.Collection(collectionName)
 		cursor, err := collection.Aggregate(ctx, pipe)
 		if err != nil {
 			return nil, err
@@ -361,7 +414,7 @@ func (r *Repository) Aggregate(
 		return cursor, nil
 	}
 
-	res, err := r.handleOperation(ctx, handleFunc)
+	res, err := m.handleOperation(ctx, handleFunc)
 	if res == nil || err != nil {
 		return nil, err
 	}
@@ -369,8 +422,8 @@ func (r *Repository) Aggregate(
 	return res.(*mongo.Cursor), nil
 }
 
-func (r *Repository) CreateIndex(ctx context.Context, index *mongoModel.DBIndex) (string, error) {
-	c := r.mongoDb.Collection(index.Collection)
+func (m *MongoDB) CreateIndex(ctx context.Context, index *mongoModel.DBIndex) (string, error) {
+	c := m.db.Collection(index.Collection)
 	opts := options.CreateIndexes().SetMaxTime(indexTimeoutSeconds * time.Second)
 
 	keysName := make([]bsonx.Elem, 0)
@@ -391,8 +444,8 @@ func (r *Repository) CreateIndex(ctx context.Context, index *mongoModel.DBIndex)
 	return c.Indexes().CreateOne(ctx, indexModel, opts)
 }
 
-func (r *Repository) CreateTextIndex(ctx context.Context, index *mongoModel.DBTextIndex) (string, error) {
-	c := r.mongoDb.Collection(index.Collection)
+func (m *MongoDB) CreateTextIndex(ctx context.Context, index *mongoModel.DBTextIndex) (string, error) {
+	c := m.db.Collection(index.Collection)
 	opts := options.CreateIndexes().SetMaxTime(indexTimeoutSeconds * time.Second)
 
 	keysName := make([]bsonx.Elem, 0)
@@ -412,9 +465,9 @@ func (r *Repository) CreateTextIndex(ctx context.Context, index *mongoModel.DBTe
 	return c.Indexes().CreateOne(ctx, indexModel, opts)
 }
 
-func (r *Repository) CollectionIndexes(ctx context.Context, collection string) (map[string]*mongoModel.DBIndex, error) {
+func (m *MongoDB) CollectionIndexes(ctx context.Context, collection string) (map[string]*mongoModel.DBIndex, error) {
 	res := make(map[string]*mongoModel.DBIndex)
-	c := r.mongoDb.Collection(collection)
+	c := m.db.Collection(collection)
 	duration := indexTimeoutSeconds * time.Second
 	opts := &options.ListIndexesOptions{MaxTime: &duration}
 	cur, err := c.Indexes().List(ctx, opts)
@@ -431,31 +484,17 @@ func (r *Repository) CollectionIndexes(ctx context.Context, collection string) (
 	return res, nil
 }
 
-func (r *Repository) Transaction(
-	ctx context.Context,
-	transactionFunc mongoInterface.TransactionCallbackFunc,
-) (interface{}, error) {
-	handleFunc := r.getTransactionWrapper(transactionFunc)
-
-	res, err := r.handleOperation(ctx, handleFunc)
-	if res == nil || err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
-func (r *Repository) TryCreateIndex(ctx context.Context, index *mongoModel.DBIndex) error {
-	indexes, err := r.CollectionIndexes(ctx, index.Collection)
+func (m *MongoDB) TryCreateIndex(ctx context.Context, index *mongoModel.DBIndex) error {
+	indexes, err := m.CollectionIndexes(ctx, index.Collection)
 	if err != nil {
 		return err
 	}
 
-	if r.isIndexExist(index, indexes) {
+	if m.isIndexExist(index, indexes) {
 		return nil
 	}
 
-	_, err = r.CreateIndex(ctx, index)
+	_, err = m.CreateIndex(ctx, index)
 	if err != nil {
 		return err
 	}
@@ -463,7 +502,7 @@ func (r *Repository) TryCreateIndex(ctx context.Context, index *mongoModel.DBInd
 	return nil
 }
 
-func (r *Repository) handleOperation(
+func (m *MongoDB) handleOperation(
 	ctx context.Context,
 	handleFunc handleOperationFunc,
 ) (interface{}, error) {
@@ -472,102 +511,11 @@ func (r *Repository) handleOperation(
 	return res, err
 }
 
-func (r *Repository) isDuplicateError(we mongo.WriteError) bool {
+func (m *MongoDB) isDuplicateError(we mongo.WriteError) bool {
 	return we.Code == 11000
 }
 
-func (r *Repository) isIndexExist(index *mongoModel.DBIndex, indexes map[string]*mongoModel.DBIndex) bool {
+func (m *MongoDB) isIndexExist(index *mongoModel.DBIndex, indexes map[string]*mongoModel.DBIndex) bool {
 	_, ok := indexes[index.Name]
 	return ok
-}
-
-func (r *Repository) getTransactionWrapper(
-	transactionFunc mongoInterface.TransactionCallbackFunc,
-) handleOperationFunc {
-	return r.getRegularModeTransactionWrapper(transactionFunc)
-}
-
-func (r *Repository) getRegularModeTransactionWrapper(
-	transactionFunc mongoInterface.TransactionCallbackFunc,
-) handleOperationFunc {
-
-	handleFunc := func(ctx context.Context) (interface{}, error) {
-		wc := writeconcern.New(writeconcern.WMajority())
-		rc := readconcern.Snapshot()
-		txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
-
-		session, err := r.mongoDb.Client().StartSession()
-		if err != nil {
-			return nil, ErrStartSession(err)
-		}
-		defer session.EndSession(ctx)
-
-		if err = session.StartTransaction(txnOpts); err != nil {
-			return nil, ErrStartTransaction(err)
-		}
-
-		var transactionResult interface{}
-		err = mongo.WithSession(ctx, session, func(sc mongo.SessionContext) error {
-			var errTx error
-			transactionResult, errTx = transactionFunc(sc, r)
-			if errTx != nil {
-				if errAborting := session.AbortTransaction(sc); errAborting != nil {
-					return ErrAbortTransaction(errAborting, errTx)
-				}
-
-				return errTx
-			}
-
-			if errCommiting := session.CommitTransaction(sc); errCommiting != nil {
-				domainCommitError := ErrCommitTransaction(errCommiting)
-				if errAborting := session.AbortTransaction(sc); errAborting != nil {
-					return ErrAbortTransaction(errAborting, domainCommitError)
-				}
-
-				return domainCommitError
-			}
-
-			return nil
-		})
-
-		if err != nil {
-			return nil, err
-		}
-
-		return transactionResult, nil
-	}
-
-	return handleFunc
-}
-
-func (r *Repository) getStandAloneModeTransactionWrapper(
-	transactionFunc mongoInterface.TransactionCallbackFunc,
-) handleOperationFunc {
-
-	handleFunc := func(ctx context.Context) (interface{}, error) {
-		session, err := r.mongoDb.Client().StartSession()
-		if err != nil {
-			return nil, ErrStartSession(err)
-		}
-		defer session.EndSession(ctx)
-
-		var transactionResult interface{}
-		err = mongo.WithSession(ctx, session, func(sc mongo.SessionContext) error {
-			var errTx error
-			transactionResult, errTx = transactionFunc(sc, r)
-			if errTx != nil {
-				return errTx
-			}
-
-			return nil
-		})
-
-		if err != nil {
-			return nil, err
-		}
-
-		return transactionResult, nil
-	}
-
-	return handleFunc
 }

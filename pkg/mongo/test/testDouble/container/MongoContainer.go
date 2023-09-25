@@ -1,4 +1,4 @@
-package commonTestcontainer
+package mongoContainer
 
 import (
 	"context"
@@ -60,7 +60,7 @@ func (c *MongoContainer) MongoConfig() *mongoTestUtil.MongoTestConfig {
 	return c.mongoConfig
 }
 
-func (c *MongoContainer) NewMongoRepository(dbName string) *mongo.Repository {
+func (c *MongoContainer) NewMongoRepository(dbName string) *mongo.MongoDB {
 	return mongoTestUtil.NewMongoRepository(c.mongoConfig, dbName)
 }
 
