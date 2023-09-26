@@ -87,9 +87,9 @@ func AssertFieldIsNil(t *testing.T, object interface{}, fieldName string) {
 func isValueNil(object interface{}, fieldName string) (bool, error) {
 	reflectFieldValue := getFieldReflectValue(object, fieldName)
 	switch reflectFieldValue.Kind() {
-	case reflect.Map, reflect.Chan, reflect.Slice:
+	case reflect.Map, reflect.Chan, reflect.Slice, reflect.Pointer:
 		return reflectFieldValue.IsNil(), nil
-	case reflect.Interface, reflect.Pointer:
+	case reflect.Interface:
 		result := reflectFieldValue.IsNil() || reflectFieldValue.Elem().IsNil()
 		return result, nil
 	default:
