@@ -9,24 +9,24 @@ import (
 )
 
 type Repository interface {
-	Insert(ctx context.Context, collectionName string, data interface{}) (string, error)
+	Insert(ctx context.Context, collection mongoModel.Collection, data interface{}) (string, error)
 
-	InsertMany(ctx context.Context, collectionName string, data []interface{}) ([]string, error)
+	InsertMany(ctx context.Context, collection mongoModel.Collection, data []interface{}) ([]string, error)
 
 	FindOneAndUpdate(
 		ctx context.Context,
-		collectionName string,
+		collection mongoModel.Collection,
 		resultModel,
 		filter,
 		updateData interface{},
 		opt *options.FindOneAndUpdateOptions,
 	) error
 
-	ReplaceOne(ctx context.Context, collectionName string, filter, data interface{}) error
+	ReplaceOne(ctx context.Context, collection mongoModel.Collection, filter, data interface{}) error
 
 	UpdateOne(
 		ctx context.Context,
-		collectionName string,
+		collection mongoModel.Collection,
 		filter,
 		data interface{},
 		opts ...*options.UpdateOptions,
@@ -34,31 +34,37 @@ type Repository interface {
 
 	UpdateMany(
 		ctx context.Context,
-		collectionName string,
+		collection mongoModel.Collection,
 		filter interface{},
 		data interface{},
 		opts ...*options.UpdateOptions,
 	) (int64, error)
 
-	Find(ctx context.Context, collectionName string, results, find interface{}, opt *options.FindOptions) error
+	Find(ctx context.Context, collection mongoModel.Collection, results, find interface{}, opt *options.FindOptions) error
 
 	FindOne(
 		ctx context.Context,
-		collectionName string,
+		collection mongoModel.Collection,
 		resultModel,
 		findQuery interface{},
 		findOptions *options.FindOneOptions,
 	) error
 
-	DeleteOne(ctx context.Context, collectionName string, filter interface{},
-		opt *options.DeleteOptions) (*mongo.DeleteResult, error)
+	DeleteOne(ctx context.Context,
+		collection mongoModel.Collection,
+		filter interface{},
+		opt *options.DeleteOptions,
+	) (*mongo.DeleteResult, error)
 
-	DeleteMany(ctx context.Context, collectionName string, filter interface{},
-		opt *options.DeleteOptions) (*mongo.DeleteResult, error)
+	DeleteMany(ctx context.Context,
+		collection mongoModel.Collection,
+		filter interface{},
+		opt *options.DeleteOptions,
+	) (*mongo.DeleteResult, error)
 
-	Count(ctx context.Context, collectionName string, find interface{}, opt *options.CountOptions) (int64, error)
+	Count(ctx context.Context, collection mongoModel.Collection, find interface{}, opt *options.CountOptions) (int64, error)
 
-	Aggregate(ctx context.Context, collectionName string, pipe mongo.Pipeline) (*mongo.Cursor, error)
+	Aggregate(ctx context.Context, collection mongoModel.Collection, pipe mongo.Pipeline) (*mongo.Cursor, error)
 
 	CreateTextIndex(ctx context.Context, index *mongoModel.DBTextIndex) (string, error)
 
@@ -66,5 +72,5 @@ type Repository interface {
 
 	TryCreateIndex(ctx context.Context, index *mongoModel.DBIndex) error
 
-	CollectionIndexes(ctx context.Context, collection string) (map[string]*mongoModel.DBIndex, error)
+	CollectionIndexes(ctx context.Context, collection mongoModel.Collection) (map[string]*mongoModel.DBIndex, error)
 }
