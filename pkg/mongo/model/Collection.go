@@ -9,3 +9,7 @@ func CollectionFrom(str string) (Collection, error) {
 
 	return Collection(str), nil
 }
+
+func (c Collection) String() string {
+	return string(c)
+}
