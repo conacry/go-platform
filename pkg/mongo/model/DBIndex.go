@@ -8,7 +8,7 @@ const (
 )
 
 type DBIndex struct {
-	Collection string
+	Collection Collection
 	Name       string
 	Keys       []string
 	Type       DBIndexType
