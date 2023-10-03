@@ -21,8 +21,8 @@ type RepositoryMock struct {
 	*mocking.BaseMock
 }
 
-func (m *RepositoryMock) Insert(ctx context.Context, collectionName string, data interface{}) (string, error) {
-	result, err := m.ProcessMethod(ctx, collectionName, data)
+func (m *RepositoryMock) Insert(ctx context.Context, collection mongoModel.Collection, data interface{}) (string, error) {
+	result, err := m.ProcessMethod(ctx, collection, data)
 	if err != nil {
 		return "", err
 	}
@@ -39,8 +39,8 @@ func (m *RepositoryMock) Insert(ctx context.Context, collectionName string, data
 	return "", err
 }
 
-func (m *RepositoryMock) InsertMany(ctx context.Context, collectionName string, data []interface{}) ([]string, error) {
-	result, err := m.ProcessMethod(ctx, collectionName, data)
+func (m *RepositoryMock) InsertMany(ctx context.Context, collection mongoModel.Collection, data []interface{}) ([]string, error) {
+	result, err := m.ProcessMethod(ctx, collection, data)
 	if err != nil {
 		return nil, err
 	}
@@ -57,18 +57,18 @@ func (m *RepositoryMock) InsertMany(ctx context.Context, collectionName string, 
 	return nil, err
 }
 
-func (m *RepositoryMock) FindOneAndUpdate(ctx context.Context, collectionName string, resultModel, filter, updateData interface{}, opt *options.FindOneAndUpdateOptions) error {
-	_, err := m.ProcessMethod(ctx, collectionName, resultModel, filter, updateData, opt)
+func (m *RepositoryMock) FindOneAndUpdate(ctx context.Context, collection mongoModel.Collection, resultModel, filter, updateData interface{}, opt *options.FindOneAndUpdateOptions) error {
+	_, err := m.ProcessMethod(ctx, collection, resultModel, filter, updateData, opt)
 	return err
 }
 
-func (m *RepositoryMock) ReplaceOne(ctx context.Context, collectionName string, filter, data interface{}) error {
-	_, err := m.ProcessMethod(ctx, collectionName, filter, data)
+func (m *RepositoryMock) ReplaceOne(ctx context.Context, collection mongoModel.Collection, filter, data interface{}) error {
+	_, err := m.ProcessMethod(ctx, collection, filter, data)
 	return err
 }
 
-func (m *RepositoryMock) UpdateOne(ctx context.Context, collectionName string, filter, data interface{}, opts ...*options.UpdateOptions) (int64, error) {
-	result, err := m.ProcessMethod(ctx, collectionName, filter, data, opts)
+func (m *RepositoryMock) UpdateOne(ctx context.Context, collection mongoModel.Collection, filter, data interface{}, opts ...*options.UpdateOptions) (int64, error) {
+	result, err := m.ProcessMethod(ctx, collection, filter, data, opts)
 	if err != nil {
 		return 0, err
 	}
@@ -87,12 +87,12 @@ func (m *RepositoryMock) UpdateOne(ctx context.Context, collectionName string, f
 
 func (m *RepositoryMock) UpdateMany(
 	ctx context.Context,
-	collectionName string,
+	collection mongoModel.Collection,
 	filter interface{},
 	data interface{},
 	opts ...*options.UpdateOptions,
 ) (int64, error) {
-	result, err := m.ProcessMethod(ctx, collectionName, filter, data, opts)
+	result, err := m.ProcessMethod(ctx, collection, filter, data, opts)
 	if err != nil {
 		return 0, err
 	}
@@ -109,18 +109,18 @@ func (m *RepositoryMock) UpdateMany(
 	return 0, err
 }
 
-func (m *RepositoryMock) Find(ctx context.Context, collectionName string, results, find interface{}, opt *options.FindOptions) error {
-	_, err := m.ProcessMethod(ctx, collectionName, results, find, opt)
+func (m *RepositoryMock) Find(ctx context.Context, collection mongoModel.Collection, results, find interface{}, opt *options.FindOptions) error {
+	_, err := m.ProcessMethod(ctx, collection, results, find, opt)
 	return err
 }
 
-func (m *RepositoryMock) FindOne(ctx context.Context, collectionName string, resultModel, findQuery interface{}, findOptions *options.FindOneOptions) error {
-	_, err := m.ProcessMethod(ctx, collectionName, resultModel, findQuery, findOptions)
+func (m *RepositoryMock) FindOne(ctx context.Context, collection mongoModel.Collection, resultModel, findQuery interface{}, findOptions *options.FindOneOptions) error {
+	_, err := m.ProcessMethod(ctx, collection, resultModel, findQuery, findOptions)
 	return err
 }
 
-func (m *RepositoryMock) DeleteOne(ctx context.Context, collectionName string, filter interface{}, opt *options.DeleteOptions) (*mongo.DeleteResult, error) {
-	result, err := m.ProcessMethod(ctx, collectionName, filter, opt)
+func (m *RepositoryMock) DeleteOne(ctx context.Context, collection mongoModel.Collection, filter interface{}, opt *options.DeleteOptions) (*mongo.DeleteResult, error) {
+	result, err := m.ProcessMethod(ctx, collection, filter, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -137,8 +137,8 @@ func (m *RepositoryMock) DeleteOne(ctx context.Context, collectionName string, f
 	return nil, err
 }
 
-func (m *RepositoryMock) DeleteMany(ctx context.Context, collectionName string, filter interface{}, opt *options.DeleteOptions) (*mongo.DeleteResult, error) {
-	result, err := m.ProcessMethod(ctx, collectionName, filter, opt)
+func (m *RepositoryMock) DeleteMany(ctx context.Context, collection mongoModel.Collection, filter interface{}, opt *options.DeleteOptions) (*mongo.DeleteResult, error) {
+	result, err := m.ProcessMethod(ctx, collection, filter, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -155,8 +155,8 @@ func (m *RepositoryMock) DeleteMany(ctx context.Context, collectionName string, 
 	return nil, err
 }
 
-func (m *RepositoryMock) Count(ctx context.Context, collectionName string, find interface{}, opt *options.CountOptions) (int64, error) {
-	result, err := m.ProcessMethod(ctx, collectionName, find, opt)
+func (m *RepositoryMock) Count(ctx context.Context, collection mongoModel.Collection, find interface{}, opt *options.CountOptions) (int64, error) {
+	result, err := m.ProcessMethod(ctx, collection, find, opt)
 	if err != nil {
 		return 0, err
 	}
@@ -173,8 +173,8 @@ func (m *RepositoryMock) Count(ctx context.Context, collectionName string, find 
 	return 0, err
 }
 
-func (m *RepositoryMock) Aggregate(ctx context.Context, collectionName string, pipe mongo.Pipeline) (*mongo.Cursor, error) {
-	result, err := m.ProcessMethod(ctx, collectionName, pipe)
+func (m *RepositoryMock) Aggregate(ctx context.Context, collection mongoModel.Collection, pipe mongo.Pipeline) (*mongo.Cursor, error) {
+	result, err := m.ProcessMethod(ctx, collection, pipe)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +232,7 @@ func (m *RepositoryMock) TryCreateIndex(ctx context.Context, index *mongoModel.D
 	return err
 }
 
-func (m *RepositoryMock) CollectionIndexes(ctx context.Context, collection string) (map[string]*mongoModel.DBIndex, error) {
+func (m *RepositoryMock) CollectionIndexes(ctx context.Context, collection mongoModel.Collection) (map[string]*mongoModel.DBIndex, error) {
 	result, err := m.ProcessMethod(ctx, collection)
 	if err != nil {
 		return nil, err
