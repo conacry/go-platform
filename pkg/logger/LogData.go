@@ -8,14 +8,14 @@ const (
 	FieldFilenameKey  = "filename"
 )
 
-type LogData struct {
+type Data struct {
 	Ctx    context.Context
 	Msg    string
-	Fields []*LogField
+	Fields []*Field
 	Level  Level
 }
 
-type LogField struct {
+type Field struct {
 	Key     string
 	Integer int
 	Float   float64
@@ -23,12 +23,12 @@ type LogField struct {
 	Object  interface{}
 }
 
-func ErrorLogData(ctx context.Context, msg, err string) *LogData {
-	logFields := []*LogField{
+func ErrorData(ctx context.Context, msg, err string) *Data {
+	logFields := []*Field{
 		{Key: FieldErrKey, String: err},
 	}
 
-	return &LogData{
+	return &Data{
 		Ctx:    ctx,
 		Msg:    msg,
 		Fields: logFields,
@@ -36,24 +36,24 @@ func ErrorLogData(ctx context.Context, msg, err string) *LogData {
 	}
 }
 
-func WarnLogData(ctx context.Context, msg string) *LogData {
-	return &LogData{
+func WarnData(ctx context.Context, msg string) *Data {
+	return &Data{
 		Ctx:   ctx,
 		Msg:   msg,
 		Level: Levels.Warn(),
 	}
 }
 
-func InfoLogData(ctx context.Context, msg string) *LogData {
-	return &LogData{
+func InfoData(ctx context.Context, msg string) *Data {
+	return &Data{
 		Ctx:   ctx,
 		Msg:   msg,
 		Level: Levels.Info(),
 	}
 }
 
-func DebugLogData(ctx context.Context, msg string) *LogData {
-	return &LogData{
+func DebugData(ctx context.Context, msg string) *Data {
+	return &Data{
 		Ctx:   ctx,
 		Msg:   msg,
 		Level: Levels.Debug(),

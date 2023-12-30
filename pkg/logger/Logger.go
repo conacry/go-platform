@@ -71,21 +71,21 @@ func (l *ZapLogger) LogError(ctx context.Context, errs ...error) {
 
 func (l *ZapLogger) LogWarn(ctx context.Context, messages ...string) {
 	for _, message := range messages {
-		logData := InfoLogData(ctx, message)
+		logData := InfoData(ctx, message)
 		l.logMsg(logData)
 	}
 }
 
 func (l *ZapLogger) LogInfo(ctx context.Context, messages ...string) {
 	for _, message := range messages {
-		logData := InfoLogData(ctx, message)
+		logData := InfoData(ctx, message)
 		l.logMsg(logData)
 	}
 }
 
 func (l *ZapLogger) LogDebug(ctx context.Context, messages ...string) {
 	for _, message := range messages {
-		logData := InfoLogData(ctx, message)
+		logData := InfoData(ctx, message)
 		l.logMsg(logData)
 	}
 }
@@ -95,7 +95,7 @@ func (l *ZapLogger) processLogError(ctx context.Context, err error) {
 	l.logMsg(logData)
 }
 
-func (l *ZapLogger) logMsg(logData *LogData) {
+func (l *ZapLogger) logMsg(logData *Data) {
 	requestID := l.getRequestIDFromCtx(logData.Ctx)
 	resFields := l.getPayloadFields(logData)
 
@@ -113,12 +113,12 @@ func (l *ZapLogger) logMsg(logData *LogData) {
 	}
 }
 
-func createErrLogData(ctx context.Context, err error) *LogData {
+func createErrLogData(ctx context.Context, err error) *Data {
 	if err == nil {
-		return &LogData{
+		return &Data{
 			Ctx:    ctx,
 			Msg:    errorForLogIsNil.Error(),
-			Fields: []*LogField{},
+			Fields: []*Field{},
 			Level:  Levels.Error(),
 		}
 	}
@@ -127,14 +127,14 @@ func createErrLogData(ctx context.Context, err error) *LogData {
 	errWithStack := errors.WithStack(err)
 	fileNames := getFileNames(errWithStack)
 
-	logFields := []*LogField{
+	logFields := []*Field{
 		{
 			Key:    FieldFilenameKey,
 			String: strings.Join(fileNames, " <- "),
 		},
 	}
 
-	return &LogData{
+	return &Data{
 		Ctx:    ctx,
 		Msg:    err.Error(),
 		Fields: logFields,
@@ -151,7 +151,7 @@ func (l *ZapLogger) getRequestIDFromCtx(ctx context.Context) string {
 	return requestID
 }
 
-func (l *ZapLogger) getPayloadFields(logData *LogData) []zap.Field {
+func (l *ZapLogger) getPayloadFields(logData *Data) []zap.Field {
 	var resFields []zap.Field
 	resFields = append(
 		resFields,

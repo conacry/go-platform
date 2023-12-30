@@ -11,6 +11,9 @@ import (
 const (
 	defaultPostgreSQLImage = "postgres:15.4-alpine3.18"
 	innerPostgreSQLPort    = "5432"
+	dbName                 = "test_db"
+	dbUser                 = "user"
+	dbPassword             = "password"
 )
 
 type ContainerInfo struct {
@@ -53,10 +56,6 @@ func (c *PostgreSQL) SetupWithImage(imageName string) {
 }
 
 func startContainer(ctx context.Context, imageName string) testcontainers.Container {
-	dbName := "test_db"
-	dbUser := "user"
-	dbPassword := "password"
-
 	postgresContainer, err := postgres.RunContainer(ctx,
 		testcontainers.WithImage(imageName),
 		postgres.WithDatabase(dbName),
