@@ -2,9 +2,16 @@ package httpServerMiddleware
 
 import (
 	"context"
+	"net/http"
+
 	httpServerModel "github.com/conacry/go-platform/pkg/http/server/model"
 	"github.com/google/uuid"
-	"net/http"
+)
+
+type ValueKey string
+
+const (
+	RequestIDKey ValueKey = "RequestID"
 )
 
 type RequestIDDetectorMiddleware struct{}
@@ -21,7 +28,7 @@ func (m *RequestIDDetectorMiddleware) Process(next http.Handler) http.Handler {
 		}
 
 		//TODO: Вынести ключи для Value контекста в отдельное место
-		ctx := context.WithValue(r.Context(), "RequestID", requestID)
+		ctx := context.WithValue(r.Context(), RequestIDKey, requestID)
 		w.Header().Add(httpServerModel.RequestIDHeaderName, requestID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

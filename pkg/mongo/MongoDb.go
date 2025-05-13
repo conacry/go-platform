@@ -4,21 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	log "github.com/conacry/go-platform/pkg/logger"
-	mongoModel "github.com/conacry/go-platform/pkg/mongo/model"
 	"time"
 
+	log "github.com/conacry/go-platform/pkg/logger"
+	mongoModel "github.com/conacry/go-platform/pkg/mongo/model"
+
+	"slices"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
 )
 
-const (
-	indexTimeoutSeconds = 10
-)
-
-type handleOperationFunc func(ctx context.Context) (interface{}, error)
+type handleOperationFunc func(ctx context.Context) (any, error)
 
 type MongoDB struct {
 	logger log.Logger
@@ -28,17 +27,9 @@ type MongoDB struct {
 }
 
 func (m *MongoDB) Start(ctx context.Context) error {
-	mongoClient, err := mongo.NewClient(options.Client().ApplyURI(m.config.URL))
+	mongoClient, err := mongo.Connect(options.Client().ApplyURI(m.config.URL))
 	if err != nil {
 		msg := fmt.Sprintf("Error creating mongo client. Cause: %q", err.Error())
-		err := errors.New(msg)
-		m.logger.LogError(ctx, err)
-		return err
-	}
-
-	err = mongoClient.Connect(context.Background())
-	if err != nil {
-		msg := fmt.Sprintf("Mongo connection error. Cause: %q", err.Error())
 		err := errors.New(msg)
 		m.logger.LogError(ctx, err)
 		return err
@@ -77,8 +68,8 @@ func (m *MongoDB) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (m *MongoDB) Insert(ctx context.Context, collectionName mongoModel.Collection, data interface{}) (string, error) {
-	handleFunc := func(ctx context.Context) (interface{}, error) {
+func (m *MongoDB) Insert(ctx context.Context, collectionName mongoModel.Collection, data any) (string, error) {
+	handleFunc := func(ctx context.Context) (any, error) {
 		coll := m.db.Collection(collectionName.String())
 
 		res, err := coll.InsertOne(
@@ -88,13 +79,8 @@ func (m *MongoDB) Insert(ctx context.Context, collectionName mongoModel.Collecti
 		if err != nil {
 			var mongoErr mongo.WriteException
 			isMongoErr := errors.As(err, &mongoErr)
-			if isMongoErr {
-				for _, we := range mongoErr.WriteErrors {
-					if m.isDuplicateError(we) {
-						return "", ErrDuplicateUniqueConstraint(err)
-					}
-					return "", err
-				}
+			if isMongoErr && slices.ContainsFunc(mongoErr.WriteErrors, m.isDuplicateError) {
+				return "", ErrDuplicateUniqueConstraint(err)
 			} else {
 				return "", err
 			}
@@ -118,8 +104,8 @@ func (m *MongoDB) Insert(ctx context.Context, collectionName mongoModel.Collecti
 	return res.(string), nil
 }
 
-func (m *MongoDB) InsertMany(ctx context.Context, collectionName mongoModel.Collection, data []interface{}) ([]string, error) {
-	handleFunc := func(ctx context.Context) (interface{}, error) {
+func (m *MongoDB) InsertMany(ctx context.Context, collectionName mongoModel.Collection, data []any) ([]string, error) {
+	handleFunc := func(ctx context.Context) (any, error) {
 		coll := m.db.Collection(collectionName.String())
 
 		res, err := coll.InsertMany(
@@ -129,13 +115,8 @@ func (m *MongoDB) InsertMany(ctx context.Context, collectionName mongoModel.Coll
 		if err != nil {
 			var mongoErr mongo.WriteException
 			isMongoErr := errors.As(err, &mongoErr)
-			if isMongoErr {
-				for _, we := range mongoErr.WriteErrors {
-					if m.isDuplicateError(we) {
-						return nil, ErrDuplicateUniqueConstraint(err)
-					}
-					return nil, err
-				}
+			if isMongoErr && slices.ContainsFunc(mongoErr.WriteErrors, m.isDuplicateError) {
+				return nil, ErrDuplicateUniqueConstraint(err)
 			} else {
 				return nil, err
 			}
@@ -168,10 +149,10 @@ func (m *MongoDB) FindOneAndUpdate(
 	collectionName mongoModel.Collection,
 	resultModel,
 	filter,
-	updateData interface{},
-	opt *options.FindOneAndUpdateOptions,
+	updateData any,
+	opt options.Lister[options.FindOneAndUpdateOptions],
 ) error {
-	handleFunc := func(ctx context.Context) (interface{}, error) {
+	handleFunc := func(ctx context.Context) (any, error) {
 		coll := m.db.Collection(collectionName.String())
 		result := coll.FindOneAndUpdate(
 			ctx,
@@ -199,10 +180,10 @@ func (m *MongoDB) FindOneAndUpdate(
 func (m *MongoDB) ReplaceOne(
 	ctx context.Context,
 	collectionName mongoModel.Collection,
-	filter interface{},
-	data interface{},
+	filter any,
+	data any,
 ) error {
-	handleFunc := func(ctx context.Context) (interface{}, error) {
+	handleFunc := func(ctx context.Context) (any, error) {
 		coll := m.db.Collection(collectionName.String())
 		_, err := coll.ReplaceOne(
 			ctx,
@@ -219,10 +200,10 @@ func (m *MongoDB) UpdateOne(
 	ctx context.Context,
 	collectionName mongoModel.Collection,
 	filter,
-	data interface{},
-	opts ...*options.UpdateOptions,
+	data any,
+	opts ...options.Lister[options.UpdateOneOptions],
 ) (int64, error) {
-	handleFunc := func(ctx context.Context) (interface{}, error) {
+	handleFunc := func(ctx context.Context) (any, error) {
 		coll := m.db.Collection(collectionName.String())
 		res, err := coll.UpdateOne(
 			ctx,
@@ -247,11 +228,11 @@ func (m *MongoDB) UpdateOne(
 func (m *MongoDB) UpdateMany(
 	ctx context.Context,
 	collectionName mongoModel.Collection,
-	filter interface{},
-	data interface{},
-	opts ...*options.UpdateOptions,
+	filter any,
+	data any,
+	opts ...options.Lister[options.UpdateManyOptions],
 ) (int64, error) {
-	handleFunc := func(ctx context.Context) (interface{}, error) {
+	handleFunc := func(ctx context.Context) (any, error) {
 		coll := m.db.Collection(collectionName.String())
 		res, err := coll.UpdateMany(
 			ctx,
@@ -277,13 +258,13 @@ func (m *MongoDB) UpdateMany(
 func (m *MongoDB) Find(
 	ctx context.Context,
 	collectionName mongoModel.Collection,
-	results interface{},
-	find interface{},
-	opt *options.FindOptions,
+	results any,
+	find any,
+	opt ...options.Lister[options.FindOptions],
 ) error {
-	handleFunc := func(ctx context.Context) (interface{}, error) {
+	handleFunc := func(ctx context.Context) (any, error) {
 		collection := m.db.Collection(collectionName.String())
-		cursor, err := collection.Find(ctx, find, opt)
+		cursor, err := collection.Find(ctx, find, opt...)
 		if err != nil {
 			return nil, err
 		}
@@ -304,12 +285,12 @@ func (m *MongoDB) FindOne(
 	ctx context.Context,
 	collectionName mongoModel.Collection,
 	resultModel,
-	findQuery interface{},
-	findOptions *options.FindOneOptions,
+	findQuery any,
+	findOptions ...options.Lister[options.FindOneOptions],
 ) error {
-	handleFunc := func(ctx context.Context) (interface{}, error) {
+	handleFunc := func(ctx context.Context) (any, error) {
 		collection := m.db.Collection(collectionName.String())
-		result := collection.FindOne(ctx, findQuery, findOptions)
+		result := collection.FindOne(ctx, findQuery, findOptions...)
 		err := result.Err()
 		if err != nil {
 			return nil, err
@@ -330,12 +311,12 @@ func (m *MongoDB) FindOne(
 func (m *MongoDB) DeleteOne(
 	ctx context.Context,
 	collectionName mongoModel.Collection,
-	filter interface{},
-	opt *options.DeleteOptions,
+	filter any,
+	opts ...options.Lister[options.DeleteOneOptions],
 ) (*mongo.DeleteResult, error) {
-	handleFunc := func(ctx context.Context) (interface{}, error) {
+	handleFunc := func(ctx context.Context) (any, error) {
 		collection := m.db.Collection(collectionName.String())
-		result, err := collection.DeleteOne(ctx, filter, opt)
+		result, err := collection.DeleteOne(ctx, filter, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -354,12 +335,12 @@ func (m *MongoDB) DeleteOne(
 func (m *MongoDB) DeleteMany(
 	ctx context.Context,
 	collectionName mongoModel.Collection,
-	filter interface{},
-	opt *options.DeleteOptions,
+	filter any,
+	opts ...options.Lister[options.DeleteManyOptions],
 ) (*mongo.DeleteResult, error) {
-	handleFunc := func(ctx context.Context) (interface{}, error) {
+	handleFunc := func(ctx context.Context) (any, error) {
 		collection := m.db.Collection(collectionName.String())
-		result, err := collection.DeleteMany(ctx, filter, opt)
+		result, err := collection.DeleteMany(ctx, filter, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -378,12 +359,12 @@ func (m *MongoDB) DeleteMany(
 func (m *MongoDB) Count(
 	ctx context.Context,
 	collectionName mongoModel.Collection,
-	find interface{},
-	opt *options.CountOptions,
+	find any,
+	opts ...options.Lister[options.CountOptions],
 ) (int64, error) {
-	handleFunc := func(ctx context.Context) (interface{}, error) {
+	handleFunc := func(ctx context.Context) (any, error) {
 		collection := m.db.Collection(collectionName.String())
-		count, err := collection.CountDocuments(ctx, find, opt)
+		count, err := collection.CountDocuments(ctx, find, opts...)
 		if err != nil {
 			return 0, err
 		}
@@ -404,7 +385,7 @@ func (m *MongoDB) Aggregate(
 	collectionName mongoModel.Collection,
 	pipe mongo.Pipeline,
 ) (*mongo.Cursor, error) {
-	handleFunc := func(ctx context.Context) (interface{}, error) {
+	handleFunc := func(ctx context.Context) (any, error) {
 		collection := m.db.Collection(collectionName.String())
 		cursor, err := collection.Aggregate(ctx, pipe)
 		if err != nil {
@@ -424,7 +405,7 @@ func (m *MongoDB) Aggregate(
 
 func (m *MongoDB) CreateIndex(ctx context.Context, index *mongoModel.DBIndex) (string, error) {
 	c := m.db.Collection(index.Collection.String())
-	opts := options.CreateIndexes().SetMaxTime(indexTimeoutSeconds * time.Second)
+	opts := options.CreateIndexes()
 
 	keysName := make([]bsonx.Elem, 0)
 	for _, k := range index.Keys {
@@ -446,7 +427,7 @@ func (m *MongoDB) CreateIndex(ctx context.Context, index *mongoModel.DBIndex) (s
 
 func (m *MongoDB) CreateTextIndex(ctx context.Context, index *mongoModel.DBTextIndex) (string, error) {
 	c := m.db.Collection(index.Collection)
-	opts := options.CreateIndexes().SetMaxTime(indexTimeoutSeconds * time.Second)
+	opts := options.CreateIndexes()
 
 	keysName := make([]bsonx.Elem, 0)
 
@@ -468,8 +449,7 @@ func (m *MongoDB) CreateTextIndex(ctx context.Context, index *mongoModel.DBTextI
 func (m *MongoDB) CollectionIndexes(ctx context.Context, collection mongoModel.Collection) (map[string]*mongoModel.DBIndex, error) {
 	res := make(map[string]*mongoModel.DBIndex)
 	c := m.db.Collection(collection.String())
-	duration := indexTimeoutSeconds * time.Second
-	opts := &options.ListIndexesOptions{MaxTime: &duration}
+	opts := options.ListIndexes()
 	cur, err := c.Indexes().List(ctx, opts)
 	if err != nil {
 		return res, err
@@ -505,7 +485,7 @@ func (m *MongoDB) TryCreateIndex(ctx context.Context, index *mongoModel.DBIndex)
 func (m *MongoDB) handleOperation(
 	ctx context.Context,
 	handleFunc handleOperationFunc,
-) (interface{}, error) {
+) (any, error) {
 	res, err := handleFunc(ctx)
 
 	return res, err

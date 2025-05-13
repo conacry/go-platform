@@ -1,12 +1,13 @@
 package timeTest
 
 import (
+	"testing"
+	goTime "time"
+
 	"github.com/conacry/go-platform/pkg/time"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	goTime "time"
 )
 
 type TimeToolsShould struct {
@@ -46,7 +47,7 @@ func (s *TimeToolsShould) TestFromTime_ReturnTime() {
 	assert.Equal(s.T(), goTime.UTC, actualTime.Location())
 	assert.True(s.T(), actualTime.Time.Equal(expectedGoTime))
 
-	require.False(s.T(), actualTime.Time.IsZero())
+	require.False(s.T(), actualTime.IsZero())
 	assert.Equal(s.T(), expectedGoTime.UnixNano(), actualTime.Time.UnixNano())
 }
 

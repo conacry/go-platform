@@ -2,10 +2,11 @@ package postgresqlContainer
 
 import (
 	"context"
+	"time"
+
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"time"
 )
 
 const (
@@ -56,8 +57,8 @@ func (c *PostgreSQL) SetupWithImage(imageName string) {
 }
 
 func startContainer(ctx context.Context, imageName string) testcontainers.Container {
-	postgresContainer, err := postgres.RunContainer(ctx,
-		testcontainers.WithImage(imageName),
+	postgresContainer, err := postgres.Run(ctx,
+		imageName,
 		postgres.WithDatabase(dbName),
 		postgres.WithUsername(dbUser),
 		postgres.WithPassword(dbPassword),

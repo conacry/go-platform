@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/conacry/go-platform/pkg/errors"
 	httpServerModel "github.com/conacry/go-platform/pkg/http/server/model"
 	httpErrorResolver "github.com/conacry/go-platform/pkg/http/server/resolver"
 	log "github.com/conacry/go-platform/pkg/logger"
-	"net/http"
 )
 
 type ErrorWriter struct {
@@ -43,10 +44,9 @@ func (ew *ErrorWriter) createErrorResponse(errs ...error) httpServerModel.ErrorR
 	errorsData := make([]httpServerModel.ErrorResponseData, 0, len(errs))
 
 	for _, err := range errs {
-		switch err.(type) {
+		switch vErr := err.(type) {
 		case *errors.Errors:
-			commonErrs := err.(*errors.Errors)
-			for _, errItem := range commonErrs.ToArray() {
+			for _, errItem := range vErr.ToArray() {
 				errData := ew.createErrorResponseData(errItem)
 				errorsData = append(errorsData, errData)
 			}

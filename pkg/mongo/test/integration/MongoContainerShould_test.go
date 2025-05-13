@@ -2,16 +2,17 @@ package integration
 
 import (
 	"context"
-	"github.com/conacry/go-platform/pkg/mongo"
-	mongoContainer "github.com/conacry/go-platform/pkg/mongo/test/testDouble/container"
-	commonTesting "github.com/conacry/go-platform/pkg/testing"
 	"strings"
 	"testing"
 
+	"github.com/conacry/go-platform/pkg/mongo"
+	mongoContainer "github.com/conacry/go-platform/pkg/mongo/test/testDouble/container"
+	commonTesting "github.com/conacry/go-platform/pkg/testing"
+
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 const (
@@ -74,7 +75,7 @@ func (s *MongoContainerShould) SetupTest() {
 }
 
 func (s *MongoContainerShould) TearDownTest() {
-	_, err := s.MongoRepo.DeleteMany(s.ctx, mongoModelCollection, bson.D{}, options.Delete())
+	_, err := s.MongoRepo.DeleteMany(s.ctx, mongoModelCollection, bson.D{}, options.DeleteMany())
 	require.NoError(s.T(), err)
 
 	s.savedMongoModels = nil
