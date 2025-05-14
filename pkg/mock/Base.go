@@ -38,7 +38,7 @@ func (m *BaseMock) Reset() {
 	m.mockMethods = make(map[string]*mockMethod)
 }
 
-func (m *BaseMock) ProcessMethod(args ...interface{}) (interface{}, error) {
+func (m *BaseMock) ProcessMethod(args ...any) (any, error) {
 	methodName := getCurrentFuncName()
 
 	m.initMockIfNotExists(methodName)
@@ -69,12 +69,12 @@ func (m *BaseMock) ProcessMethod(args ...interface{}) (interface{}, error) {
 	}
 }
 
-func invokeMockedValue(value *mockValue, args ...interface{}) (interface{}, error) {
+func invokeMockedValue(value *mockValue, args ...any) (any, error) {
 	err := value.expectedInvokeFunc(args...)
 	return nil, err
 }
 
-func returnMockValue(value *mockValue, methodName string) (interface{}, error) {
+func returnMockValue(value *mockValue, methodName string) (any, error) {
 	expectedResult := value.expectedResult
 	if expectedResult == nil {
 		panic(fmt.Sprintf("expected result not found for process mock method = %q", methodName))
@@ -122,17 +122,17 @@ func (m *BaseMock) IsNeverCalled() bool {
 	return true
 }
 
-func (m *BaseMock) SetReturnsFor(methodName string, mockValue interface{}) {
+func (m *BaseMock) SetReturnsFor(methodName string, mockValue any) {
 	mockedMethod := newMockMethod(methodName)
 	m.addMockValueToMethod(mockedMethod, mockValue)
 	m.mockMethods[methodName] = mockedMethod
 }
 
-func (m *BaseMock) GetCalledArgs(method string) []interface{} {
+func (m *BaseMock) GetCalledArgs(method string) []any {
 	return m.mockMethods[method].getCalledArguments()
 }
 
-func (m *BaseMock) addMockValueToMethod(mockedMethod *mockMethod, mockValue interface{}) {
+func (m *BaseMock) addMockValueToMethod(mockedMethod *mockMethod, mockValue any) {
 	switch value := mockValue.(type) {
 	case InvokeFunc:
 		mockedMethod.addExpectedInvoke(value)
@@ -142,9 +142,7 @@ func (m *BaseMock) addMockValueToMethod(mockedMethod *mockMethod, mockValue inte
 }
 
 func (m *BaseMock) initMockIfNotExists(method string) {
-	mockMethod, exists := m.mockMethods[method]
-	if !exists {
-		mockMethod = newMockMethod(method)
-		m.mockMethods[method] = mockMethod
+	if _, exists := m.mockMethods[method]; !exists {
+		m.mockMethods[method] = newMockMethod(method)
 	}
 }

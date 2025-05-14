@@ -1,10 +1,10 @@
 package integration
 
 import (
+	"crypto/rand"
 	"encoding/hex"
-	"github.com/conacry/go-platform/pkg/generator"
-	"math/rand"
 
+	"github.com/conacry/go-platform/pkg/generator"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -33,5 +33,8 @@ func GetMongoModelWithRandomPayload(order int, tags []string) *MongoModel {
 }
 
 func GetRandomMongoModel() *MongoModel {
-	return GetMongoModelWithRandomPayload(generator.RandomNumber(1000000, 9999999), []string{generator.RandomDefaultStr()})
+	return GetMongoModelWithRandomPayload(
+		generator.RandomNumber(1000000, 9999999),
+		[]string{generator.RandomDefaultStr()},
+	)
 }

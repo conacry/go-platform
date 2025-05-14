@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -12,7 +14,6 @@ import (
 	"github.com/aws/smithy-go"
 	"github.com/conacry/go-platform/pkg/storage"
 	storageModel "github.com/conacry/go-platform/pkg/storage/model"
-	"io"
 )
 
 type Logger interface {
@@ -34,23 +35,16 @@ type Storage struct {
 }
 
 func (s *Storage) Start(ctx context.Context) error {
-	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-		return aws.Endpoint{
-			URL:           s.config.Host,
-			SigningRegion: s.config.Region,
-		}, nil
-	})
-
 	customCredentialProvider := aws.CredentialsProviderFunc(func(ctx context.Context) (aws.Credentials, error) {
 		return aws.Credentials{
 			AccessKeyID:     s.config.AccessKey,
 			SecretAccessKey: s.config.SecretKey,
 		}, nil
 	})
-
 	cfg, err := config.LoadDefaultConfig(
 		ctx,
-		config.WithEndpointResolverWithOptions(customResolver),
+		config.WithBaseEndpoint(s.config.Host),
+		config.WithRegion(s.config.Region),
 		config.WithCredentialsProvider(customCredentialProvider),
 	)
 	if err != nil {
@@ -78,12 +72,13 @@ func (s *Storage) Start(ctx context.Context) error {
 
 func (s *Storage) UploadFile(ctx context.Context, file *storageModel.File) error {
 	bufferReader := bytes.NewReader(file.Content)
+	bufferSize := bufferReader.Size()
 
 	params := &s3.PutObjectInput{
 		Bucket:        aws.String(file.Scope),
 		Key:           aws.String(file.FilePath),
 		Body:          bufferReader,
-		ContentLength: bufferReader.Size(),
+		ContentLength: &bufferSize,
 		ContentType:   aws.String(file.MIME),
 		ACL:           types.ObjectCannedACLPublicRead,
 	}
@@ -112,7 +107,12 @@ func (s *Storage) GetFile(ctx context.Context, bucket, path string) (*storageMod
 		return nil, err
 	}
 
-	defer result.Body.Close()
+	defer func() {
+		if err := result.Body.Close(); err != nil {
+			s.logger.LogError(ctx, err)
+		}
+	}()
+
 	fileBytes, err := io.ReadAll(result.Body)
 	if err != nil {
 		s.logger.LogError(ctx, err)

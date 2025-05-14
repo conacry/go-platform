@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	httpServerModel "github.com/conacry/go-platform/pkg/http/server/model"
-	log "github.com/conacry/go-platform/pkg/logger"
 	"io"
 	"net/http"
+
+	httpServerModel "github.com/conacry/go-platform/pkg/http/server/model"
+	log "github.com/conacry/go-platform/pkg/logger"
 )
 
 type Writer struct {
@@ -46,7 +47,12 @@ func (s *Writer) Response(w http.ResponseWriter, r *http.Request, result []byte,
 }
 
 func (s *Writer) StreamResponse(w http.ResponseWriter, r *http.Request, resp *http.Response) {
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			s.logError(r.Context(), "Response Body Close Error", err)
+		}
+	}()
+
 	w.Header().Set(httpServerModel.HeaderContentType, r.Header.Get(httpServerModel.HeaderContentType))
 	w.Header().Set(httpServerModel.HeaderContentLength, r.Header.Get(httpServerModel.HeaderContentLength))
 

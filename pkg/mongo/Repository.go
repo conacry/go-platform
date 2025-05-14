@@ -2,10 +2,11 @@ package mongo
 
 import (
 	"context"
+
 	mongoModel "github.com/conacry/go-platform/pkg/mongo/model"
 
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type Repository interface {
@@ -29,7 +30,7 @@ type Repository interface {
 		collection mongoModel.Collection,
 		filter,
 		data interface{},
-		opts ...*options.UpdateOptions,
+		opts ...options.Lister[options.UpdateOneOptions],
 	) (int64, error)
 
 	UpdateMany(
@@ -37,7 +38,7 @@ type Repository interface {
 		collection mongoModel.Collection,
 		filter interface{},
 		data interface{},
-		opts ...*options.UpdateOptions,
+		opts ...options.Lister[options.UpdateManyOptions],
 	) (int64, error)
 
 	Find(ctx context.Context, collection mongoModel.Collection, results, find interface{}, opt *options.FindOptions) error
@@ -53,13 +54,13 @@ type Repository interface {
 	DeleteOne(ctx context.Context,
 		collection mongoModel.Collection,
 		filter interface{},
-		opt *options.DeleteOptions,
+		opts ...options.Lister[options.DeleteOneOptions],
 	) (*mongo.DeleteResult, error)
 
 	DeleteMany(ctx context.Context,
 		collection mongoModel.Collection,
 		filter interface{},
-		opt *options.DeleteOptions,
+		opts ...options.Lister[options.DeleteManyOptions],
 	) (*mongo.DeleteResult, error)
 
 	Count(ctx context.Context, collection mongoModel.Collection, find interface{}, opt *options.CountOptions) (int64, error)
